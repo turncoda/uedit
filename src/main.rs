@@ -17,7 +17,7 @@ struct Args {
 
     /// Path to write modified uasset file
     #[arg(short, long)]
-    output: String,
+    output: Option<String>,
 
     /// Name of import to disable (set outer_index to zero)
     #[arg(short, long)]
@@ -30,6 +30,10 @@ struct Args {
     /// Export index and property to edit (syntax: 42.propname=newvalue)
     #[arg(long)]
     edit_export: Vec<String>,
+
+    /// Dump
+    #[arg(long, default_value_t = false)]
+    dump: bool,
 }
 
 enum PropType {
@@ -66,7 +70,62 @@ fn main() {
     )
     .unwrap();
 
-    let output_uasset_path = Path::new(&args.output);
+    if args.dump {
+        for (i, import) in asset.imports.iter().enumerate() {
+            println!(
+                "{}: {}",
+                -(i as i32 + 1),
+                import.object_name.get_owned_content()
+            );
+        }
+        for (i, export) in asset.asset_data.exports.iter().enumerate() {
+            println!(
+                "{}: {}",
+                i as i32 + 1,
+                export.get_base_export().object_name.get_owned_content()
+            );
+            for prop in &export.get_normal_export().unwrap().properties {
+                match prop {
+                    Property::NameProperty(prop) => println!(
+                        "  (Name) {} \"{}\"",
+                        prop.name.get_owned_content(),
+                        prop.value.get_owned_content()
+                    ),
+                    Property::StructProperty(prop) => {
+                        println!("  (Struct) {}", prop.name.get_owned_content());
+                        for prop in &prop.value {
+                            match prop {
+                                Property::VectorProperty(prop) => println!(
+                                    "    (Vector) {} {{ {:.2}, {:.2}, {:.2} }}",
+                                    prop.name.get_owned_content(),
+                                    prop.value.x.0,
+                                    prop.value.y.0,
+                                    prop.value.z.0
+                                ),
+                                Property::RotatorProperty(prop) => println!(
+                                    "    (Rotator) {} {{ {:.2}, {:.2}, {:.2} }}",
+                                    prop.name.get_owned_content(),
+                                    prop.value.x.0,
+                                    prop.value.y.0,
+                                    prop.value.z.0
+                                ),
+                                _ => (),
+                            };
+                        }
+                    }
+                    Property::ObjectProperty(prop) => println!(
+                        "  (Object) {} -> {}",
+                        prop.name.get_owned_content(),
+                        prop.value.index
+                    ),
+                    _ => (),
+                };
+            }
+        }
+        return;
+    }
+
+    let output_uasset_path = Path::new(args.output.as_ref().unwrap());
     let mut output_uasset_file = File::create(output_uasset_path).unwrap();
     let output_uexp_path = output_uasset_path.with_extension("uexp");
     let mut output_uexp_file = File::create(output_uexp_path).unwrap();
