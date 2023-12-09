@@ -267,9 +267,9 @@ fn main() {
         };
         let new_vec_value = match prop_type {
             PropType::Vec3 => {
-                let x = f64::from(i32::from_str_radix(rhs_fields[0], 10).unwrap());
-                let y = f64::from(i32::from_str_radix(rhs_fields[1], 10).unwrap());
-                let z = f64::from(i32::from_str_radix(rhs_fields[2], 10).unwrap());
+                let x = rhs_fields[0].parse::<f64>().unwrap();
+                let y = rhs_fields[1].parse::<f64>().unwrap();
+                let z = rhs_fields[2].parse::<f64>().unwrap();
                 Some(Vec3d { x, y, z })
             }
             _ => None,
