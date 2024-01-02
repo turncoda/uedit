@@ -34,7 +34,11 @@ struct Args {
 
     /// Name of actor to disable (name may match multiple actors)
     #[arg(long)]
-    disable_actor: Vec<String>,
+    disable_actor_by_name: Vec<String>,
+
+    /// Index of actor to disable
+    #[arg(long)]
+    disable_actor_by_index: Vec<String>,
 
     /// Export index and property to edit (syntax: 42.propname=newvalue)
     #[arg(long)]
@@ -206,42 +210,48 @@ fn main() {
     }
 
     let mut actor_indices_to_disable = vec![];
-    for disable_actor in &args.disable_actor {
+    for actor in &args.disable_actor_by_name {
         for (i, export) in asset.asset_data.exports.iter().enumerate() {
-            if export.get_base_export().object_name.get_owned_content() == *disable_actor {
+            if export.get_base_export().object_name.get_owned_content() == *actor {
                 actor_indices_to_disable.push(i);
             }
         }
     }
-    for index in &actor_indices_to_disable {
-        let index = PackageIndex::new(*index as i32 + 1);
-        println!(
-            "Removed actor from PersistentLevel: {}: {}",
-            index.index,
-            asset
-                .get_export(index)
-                .unwrap()
-                .get_base_export()
-                .object_name
-                .get_owned_content()
-        );
+    for i in &args.disable_actor_by_index {
+        let i = usize::from_str_radix(i, 10).unwrap();
+        actor_indices_to_disable.push(i - 1);
     }
-    let actor_indices_to_disable: HashSet<i32> = actor_indices_to_disable
-        .into_iter()
-        .map(|i| i as i32 + 1)
-        .collect();
-    let persistent_level_index = find_persistent_level_index(&asset).unwrap();
-    if let Export::LevelExport(persistent_level) =
-        asset.get_export_mut(persistent_level_index).unwrap()
-    {
-        persistent_level.actors = persistent_level
-            .actors
-            .clone()
+    if !actor_indices_to_disable.is_empty() {
+        for index in &actor_indices_to_disable {
+            let index = PackageIndex::new(*index as i32 + 1);
+            println!(
+                "Removed actor from PersistentLevel: {}: {}",
+                index.index,
+                asset
+                    .get_export(index)
+                    .unwrap()
+                    .get_base_export()
+                    .object_name
+                    .get_owned_content()
+            );
+        }
+        let actor_indices_to_disable: HashSet<i32> = actor_indices_to_disable
             .into_iter()
-            .filter(|i| !actor_indices_to_disable.contains(&i.index))
+            .map(|i| i as i32 + 1)
             .collect();
-    } else {
-        panic!();
+        let persistent_level_index = find_persistent_level_index(&asset).unwrap();
+        if let Export::LevelExport(persistent_level) =
+            asset.get_export_mut(persistent_level_index).unwrap()
+        {
+            persistent_level.actors = persistent_level
+                .actors
+                .clone()
+                .into_iter()
+                .filter(|i| !actor_indices_to_disable.contains(&i.index))
+                .collect();
+        } else {
+            panic!();
+        }
     }
 
     // split at equal sign and parse left and right side separately
